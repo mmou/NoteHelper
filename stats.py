@@ -46,12 +46,13 @@ class StatsCommand(sublime_plugin.TextCommand):
         self.words = {}
         self.this_window = sublime.active_window()
 
-        self.traverse()
+        self.traverse(edit)
 
         self.this_window.new_file().insert(edit, 0, str(self.words))
 
-    def traverse(self):
-        for folder in self.this_window.folders():
+    def traverse(self, edit):
+        folders = self.this_window.folders()
+        for folder in folders:
             for (dirpath, dirnames, filenames) in os.walk(folder):
                 for f in filenames:
                     for af in ACCEPT_FILETYPES:
@@ -68,4 +69,3 @@ class StatsCommand(sublime_plugin.TextCommand):
                             self.words[clean_word] += 1
                         else:
                             self.words[clean_word] = 1
-
