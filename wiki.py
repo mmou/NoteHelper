@@ -25,14 +25,10 @@ def search_wiki(search_string):
         return "[]"
     else:
         return extract
-        
+
 class WikiCommand(sublime_plugin.TextCommand):
     def run(self, edit):
         self.path = sublime.active_window().active_view().file_name()
-
-        # for testing:
-        # self.path = "/Users/Merry/Dropbox (Personal)/Documents/Notes/unotes/test_links.md"
-
         results = self.get_results()
         sublime.active_window().new_file().insert(edit, 0, str(results))
 
