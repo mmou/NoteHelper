@@ -1,12 +1,11 @@
-import sublime, sublime_plugin, os, string
+import sublime, sublime_plugin, os, string, math
 
 # TODO: only return top 20 words, format better
-
 
 IGNORE_FILENAMES = set([".Ulysses-Group.plist"])
 ACCEPT_FILETYPES = set([".txt", ".md"])
 
-STOP_WORDS1 = set(["a", "about", "above", "above", "across", "after", "afterwards", 
+STOP_WORDS = set(["a", "about", "above", "above", "across", "after", "afterwards", 
     "again", "against", "all", "almost", "alone", "along", "already", "also","although",
     "always","am","among", "amongst", "amoungst", "amount",  "an", "and", "another", 
     "any","anyhow","anyone","anything","anyway", "anywhere", "are", "around", "as",  
@@ -41,39 +40,71 @@ STOP_WORDS1 = set(["a", "about", "above", "above", "across", "after", "afterward
     "who", "whoever", "whole", "whom", "whose", "why", "will", "with", "within", "without", 
     "would", "yet", "you", "your", "yours", "yourself", "yourselves", "the"])
 
-STOP_WORDS = ["a", "an", "and", "are", "as", "at", "be", "by", "for", "from", "has", "he", 
+MY_STOP_WORDS = ["a", "an", "and", "are", "as", "at", "be", "by", "for", "from", "has", "he", 
 "in", "is", "it", "its", "of", "on", "that", "the", "to", "was", "were", "will", "with", 
 "it's", "i", "i'm", "a", "you", "not", "this", "what", "if", "have", "or", "your", "do",
 "can", "we", "more", "1", "so", "one", "they", "2", "am"]
 
-MY_STOP_WORDS = set(["i", "i'm"])
 
-class StatsCommand(sublime_plugin.TextCommand):
+class Stats2Command(sublime_plugin.TextCommand):
     def run(self, edit):
 
-        self.words = {}
+        self.documents = {}
+        self.documents_scored = {}
+        self.terms = {}
+        self.terms_scored = {}        
         self.this_window = sublime.active_window()
 
-        self.traverse(edit)
+        self.traverse()     # populate self.documents with raw counts
+        self.tf_idf()       # tf-idf
 
-        self.this_window.new_file().insert(edit, 0, str(self.words))
+        results = self.terms_scored
+        self.this_window.new_file().insert(edit, 0, str(results))
 
-    def traverse(self, edit):
+    def traverse(self):
         folders = self.this_window.folders()
         for folder in folders:
             for (dirpath, dirnames, filenames) in os.walk(folder):
                 for f in filenames:
                     for af in ACCEPT_FILETYPES:
                         if f.endswith(af) and f not in IGNORE_FILENAMES:
-                            self.count_words(os.path.join(dirpath, f))
+                            self.populate_dicts(os.path.join(dirpath, f))
 
-    def count_words(self, path):
+    def populate_dicts(self, path):
         with open(path, mode="r", encoding="utf-8") as f:
+            term_freqs = {}
             for line in f:
                 for word in line.split():
                     clean_word = word.lower().strip(string.punctuation)
                     if clean_word != "" and clean_word not in STOP_WORDS and clean_word not in MY_STOP_WORDS:
-                        if clean_word in self.words:
-                            self.words[clean_word] += 1
+                        if clean_word in term_freqs:
+                            term_freqs[clean_word] += 1
                         else:
-                            self.words[clean_word] = 1
+                            term_freqs[clean_word] = 1                            
+                            if clean_word in self.terms:
+                                self.terms[clean_word] += 1
+                            else:
+                                self.terms[clean_word] = 1
+            self.documents[path] = term_freqs
+
+    def tf_idf(self):
+        num_docs = len(self.documents)
+        for doc in self.documents:
+            self.documents_scored[doc] = {}
+            num_terms = len(self.documents[doc])
+            for term in self.documents[doc]:
+#                tf = self.documents[doc][term]/num_terms
+                tf = 1+math.log(self.documents[doc][term], 10)
+                idf = math.log(num_docs/self.terms[term], 10)
+                tf_idf = round(tf*idf, 5)
+                self.documents_scored[doc][term] = tf_idf
+
+                if term in self.terms_scored:                       
+                    self.terms_scored[term] += tf_idf
+                else:
+                    self.terms_scored[term] = tf_idf
+
+            self.documents_scored[doc] = dict(sorted(self.documents[doc].items(), key=lambda e:e[1], reverse=True)[:5])
+
+
+
