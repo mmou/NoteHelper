@@ -33,11 +33,16 @@ class WikiCommand(sublime_plugin.TextCommand):
         sublime.active_window().new_file().insert(edit, 0, str(results))
 
     def get_results(self):
+        change = False
         with open(self.path, mode="r+", encoding="utf-8") as f:
             lines = f.readlines()
             for i, line in enumerate(lines):
                 if line[0:2] == "//":
+                    change = True
                     search_string = line[2:]
                     search_result = search_wiki(search_string)
                     lines.insert(i+1, format_result(search_result))
-        return "".join(lines)
+        if change:
+            return "".join(lines)
+        else:
+            return "[no change]"
